@@ -182,6 +182,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getOrderList, getOrderById, deleteOrder } from '@/api/order'
 
 const loading = ref(false)
 const detailDialogVisible = ref(false)
@@ -200,84 +201,7 @@ const pagination = reactive({
   total: 0
 })
 
-const tableData = ref([
-  {
-    id: 1,
-    orderNo: 'ORD202401010001',
-    username: '张三',
-    products: [
-      {
-        id: 1,
-        name: 'iPhone 15 Pro',
-        image: 'https://images.pexels.com/photos/788946/pexels-photo-788946.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=1',
-        price: 8999.00,
-        quantity: 1
-      }
-    ],
-    totalAmount: 8999.00,
-    status: 'paid',
-    paymentMethod: 'alipay',
-    createTime: '2024-01-01 10:30:00',
-    address: {
-      name: '张三',
-      phone: '13800138000',
-      detail: '北京市朝阳区xxx街道xxx号'
-    }
-  },
-  {
-    id: 2,
-    orderNo: 'ORD202401010002',
-    username: '李四',
-    products: [
-      {
-        id: 2,
-        name: '运动T恤',
-        image: 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=1',
-        price: 199.00,
-        quantity: 2
-      },
-      {
-        id: 3,
-        name: '有机苹果',
-        image: 'https://images.pexels.com/photos/102104/pexels-photo-102104.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=1',
-        price: 25.00,
-        quantity: 5
-      }
-    ],
-    totalAmount: 523.00,
-    status: 'shipped',
-    paymentMethod: 'wechat',
-    createTime: '2024-01-01 14:20:00',
-    address: {
-      name: '李四',
-      phone: '13800138001',
-      detail: '上海市浦东新区xxx路xxx号'
-    }
-  },
-  {
-    id: 3,
-    orderNo: 'ORD202401010003',
-    username: '王五',
-    products: [
-      {
-        id: 1,
-        name: 'iPhone 15 Pro',
-        image: 'https://images.pexels.com/photos/788946/pexels-photo-788946.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=1',
-        price: 8999.00,
-        quantity: 1
-      }
-    ],
-    totalAmount: 8999.00,
-    status: 'pending',
-    paymentMethod: 'alipay',
-    createTime: '2024-01-02 09:15:00',
-    address: {
-      name: '王五',
-      phone: '13800138002',
-      detail: '广州市天河区xxx大道xxx号'
-    }
-  }
-])
+const tableData = ref([])
 
 // 获取订单状态名称
 const getStatusName = (status) => {
@@ -333,9 +257,14 @@ const handleReset = () => {
 }
 
 // 查看订单详情
-const handleView = (row) => {
-  currentOrder.value = row
-  detailDialogVisible.value = true
+const handleView = async (row) => {
+  try {
+    const response = await getOrderById(row.id)
+    currentOrder.value = response.data
+    detailDialogVisible.value = true
+  } catch (error) {
+    ElMessage.error('获取订单详情失败')
+  }
 }
 
 // 发货
@@ -361,10 +290,13 @@ const handleCancel = async (row) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    row.status = 'cancelled'
+    await deleteOrder(row.id)
     ElMessage.success('订单已取消')
+    fetchOrderList()
   } catch (error) {
-    // 用户取消
+    if (error !== 'cancel') {
+      ElMessage.error('取消订单失败')
+    }
   }
 }
 
@@ -385,12 +317,21 @@ const handleCurrentChange = (page) => {
 }
 
 // 获取订单列表
-const fetchOrderList = () => {
+const fetchOrderList = async () => {
   loading.value = true
-  setTimeout(() => {
-    pagination.total = tableData.value.length
+  try {
+    const response = await getOrderList({
+      page: pagination.page - 1, // 后端从0开始
+      size: pagination.size,
+      ...searchForm
+    })
+    tableData.value = response.data || []
+    pagination.total = response.data?.length || 0
+  } catch (error) {
+    ElMessage.error('获取订单列表失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 onMounted(() => {

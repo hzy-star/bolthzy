@@ -185,6 +185,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getProductList, getProductById, createProduct, updateProduct, deleteProduct } from '@/api/product'
 
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -203,44 +204,7 @@ const pagination = reactive({
   total: 0
 })
 
-const tableData = ref([
-  {
-    id: 1,
-    name: 'iPhone 15 Pro',
-    image: 'https://images.pexels.com/photos/788946/pexels-photo-788946.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=1',
-    category: 'electronics',
-    price: 8999.00,
-    stock: 50,
-    sales: 120,
-    status: 1,
-    description: '最新款iPhone，性能强劲',
-    createTime: '2024-01-01 10:00:00'
-  },
-  {
-    id: 2,
-    name: '运动T恤',
-    image: 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=1',
-    category: 'clothing',
-    price: 199.00,
-    stock: 200,
-    sales: 85,
-    status: 1,
-    description: '舒适透气的运动T恤',
-    createTime: '2024-01-02 10:00:00'
-  },
-  {
-    id: 3,
-    name: '有机苹果',
-    image: 'https://images.pexels.com/photos/102104/pexels-photo-102104.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=1',
-    category: 'food',
-    price: 25.00,
-    stock: 0,
-    sales: 45,
-    status: 0,
-    description: '新鲜有机苹果，营养丰富',
-    createTime: '2024-01-03 10:00:00'
-  }
-])
+const tableData = ref([])
 
 const productForm = reactive({
   id: '',
@@ -348,14 +312,13 @@ const handleDelete = async (row) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    const index = tableData.value.findIndex(item => item.id === row.id)
-    if (index > -1) {
-      tableData.value.splice(index, 1)
-      pagination.total--
-    }
+    await deleteProduct(row.id)
     ElMessage.success('删除成功')
+    fetchProductList()
   } catch (error) {
-    // 用户取消
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
   }
 }
 
@@ -365,24 +328,14 @@ const handleSubmit = () => {
     if (valid) {
       try {
         if (isEdit.value) {
-          const index = tableData.value.findIndex(item => item.id === productForm.id)
-          if (index > -1) {
-            Object.assign(tableData.value[index], productForm)
-          }
+          await updateProduct(productForm.id, productForm)
           ElMessage.success('更新成功')
         } else {
-          const newProduct = {
-            ...productForm,
-            id: Date.now(),
-            sales: 0,
-            status: 1,
-            createTime: new Date().toLocaleString()
-          }
-          tableData.value.unshift(newProduct)
-          pagination.total++
+          await createProduct(productForm)
           ElMessage.success('创建成功')
         }
         dialogVisible.value = false
+        fetchProductList()
       } catch (error) {
         ElMessage.error('操作失败')
       }
@@ -421,13 +374,28 @@ const handleCurrentChange = (page) => {
 }
 
 // 获取商品列表
-const fetchProductList = () => {
+const fetchProductList = async () => {
   loading.value = true
-  // 模拟API调用
-  setTimeout(() => {
-    pagination.total = tableData.value.length
+  try {
+    const response = await getProductList({
+      page: pagination.page - 1, // 后端从0开始
+      size: pagination.size,
+      name: searchForm.name
+    })
+    
+    // 处理分页数据
+    if (response.data && response.data.content) {
+      tableData.value = response.data.content
+      pagination.total = response.data.totalElements
+    } else {
+      tableData.value = response.data || []
+      pagination.total = response.data?.length || 0
+    }
+  } catch (error) {
+    ElMessage.error('获取商品列表失败')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 onMounted(() => {
