@@ -5,7 +5,7 @@ import { getToken } from '@/utils/auth'
 
 // 创建axios实例
 const service = axios.create({
-  baseURL: import.meta.env.VITE_APP_BASE_API || '/api',
+  baseURL: import.meta.env.VITE_APP_BASE_API || 'http://localhost:8080/api',
   timeout: 15000
 })
 

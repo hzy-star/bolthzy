@@ -154,6 +154,7 @@
 <script setup>
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getOrderList } from '@/api/order'
 
 const filterForm = reactive({
   dateRange: [],
@@ -237,6 +238,32 @@ const handleDateChange = () => {
 // 维度变化
 const handleDimensionChange = () => {
   initCharts()
+}
+
+// 获取订单列表
+const fetchOrderList = async () => {
+  loading.value = true
+  try {
+    const response = await getOrderList()
+    tableData.value = response.data || []
+    pagination.total = response.data?.length || 0
+    
+    // 更新统计数据
+    updateOrderStats()
+  } catch (error) {
+    ElMessage.error('获取订单列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 更新订单统计
+const updateOrderStats = () => {
+  const orders = tableData.value
+  orderStats.total = orders.length
+  orderStats.revenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
+  orderStats.pending = orders.filter(order => order.status === 'pending').length
+  orderStats.completed = orders.filter(order => order.status === 'completed').length
 }
 
 // 初始化图表

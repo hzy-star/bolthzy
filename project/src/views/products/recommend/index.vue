@@ -234,6 +234,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getProductList } from '@/api/product'
 
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -511,8 +512,29 @@ const fetchRecommendList = () => {
   }, 500)
 }
 
+// 获取商品列表用于选择
+const fetchProductList = async () => {
+  try {
+    const response = await getProductList({ size: 100 })
+    if (response.data && response.data.content) {
+      productList.value = response.data.content.map(item => ({
+        id: item.id,
+        name: item.name
+      }))
+    } else if (response.data) {
+      productList.value = response.data.map(item => ({
+        id: item.id,
+        name: item.name
+      }))
+    }
+  } catch (error) {
+    console.log('获取商品列表失败:', error)
+  }
+}
+
 onMounted(() => {
   fetchRecommendList()
+  fetchProductList()
 })
 </script>
 
